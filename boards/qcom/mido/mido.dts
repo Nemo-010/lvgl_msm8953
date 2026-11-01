@@ -1,0 +1,98 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Xiaomi Redmi Note 4 ("mido"), Qualcomm MSM8953 / Snapdragon 625.
+ *
+ * Only the blocks this image actually touches are described: the CPUs, the
+ * GIC-400, the ARMv8 generic timer, the BLSP1 debug UART (the same one lk2nd
+ * uses) and the MDSS MDP5 block that is still scanning out the bootloader's
+ * splash framebuffer when we are entered.
+ */
+
+/dts-v1/;
+
+#include <arm64/armv8-a.dtsi>
+#include <zephyr/dt-bindings/interrupt-controller/arm-gic.h>
+
+/ {
+	model = "Xiaomi Redmi Note 4 (MSM8953)";
+	compatible = "xiaomi,mido", "qcom,msm8953";
+
+	#address-cells = <2>;
+	#size-cells = <2>;
+
+	chosen {
+		zephyr,sram = &sram0;
+		zephyr,console = &uart0;
+		zephyr,shell-uart = &uart0;
+		zephyr,display = &mdp;
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		timebase-frequency = <19200000>;
+
+		cpu@0 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a53";
+			reg = <0>;
+			i-cache-line-size = <64>;
+			d-cache-line-size = <64>;
+		};
+	};
+
+	gic: interrupt-controller@b000000 {
+		compatible = "arm,gic-v2", "arm,gic";
+		reg = <0x0 0x0b000000 0x0 0x1000>,
+		      <0x0 0x0b002000 0x0 0x2000>;
+		interrupt-controller;
+		#interrupt-cells = <4>;
+	};
+
+	timer {
+		compatible = "arm,armv8-timer";
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_PPI 13 IRQ_TYPE_LEVEL IRQ_DEFAULT_PRIORITY>,
+			     <GIC_PPI 14 IRQ_TYPE_LEVEL IRQ_DEFAULT_PRIORITY>,
+			     <GIC_PPI 11 IRQ_TYPE_LEVEL IRQ_DEFAULT_PRIORITY>,
+			     <GIC_PPI 10 IRQ_TYPE_LEVEL IRQ_DEFAULT_PRIORITY>;
+	};
+
+	soc {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		compatible = "simple-bus";
+		ranges;
+
+		/*
+		 * Kernel load address must match the Android boot image kernel
+		 * offset used by lk2nd on msm8953: 0x80000000 + 0x8000.
+		 */
+		sram0: memory@80080000 {
+			compatible = "mmio-sram";
+			reg = <0x0 0x80080000 0x0 0x3f800000>;
+		};
+
+		uart0: serial@78af000 {
+			compatible = "qcom,msm-uartdm";
+			reg = <0x0 0x078af000 0x0 0x1000>;
+			interrupt-parent = <&gic>;
+			interrupts = <GIC_SPI 107 IRQ_TYPE_LEVEL IRQ_DEFAULT_PRIORITY>;
+			current-speed = <115200>;
+			status = "okay";
+		};
+
+		/*
+		 * The real geometry is discovered at runtime (see the driver);
+		 * these are the panel's nominal values, as reported by lk2nd.
+		 */
+		mdp: display@1a00000 {
+			compatible = "qcom,mdp5-cont-splash";
+			reg = <0x0 0x01a00000 0x0 0x10000>;
+			width = <1080>;
+			height = <1920>;
+			status = "okay";
+		};
+	};
+};

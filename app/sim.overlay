@@ -1,0 +1,20 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * native_sim overlay: instantiate the MDP5 continuous-splash display so the
+ * exact same driver and application code can run on the host.
+ */
+
+/ {
+	chosen {
+		zephyr,display = &mdp_sim;
+	};
+
+	mdp_sim: display@1a00000 {
+		compatible = "qcom,mdp5-cont-splash";
+		reg = <0x1a00000 0x10000>;
+		width = <1080>;
+		height = <1920>;
+		status = "okay";
+	};
+};

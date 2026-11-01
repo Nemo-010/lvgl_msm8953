@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: Apache-2.0
+description: Qualcomm UARTDM (BLSP) serial controller
+
+compatible: "qcom,msm-uartdm"
+
+include: [uart-controller.yaml, pinctrl-device.yaml]
+
+properties:
+  reg:
+    type: array
+    required: true
+
+  current-speed:
+    default: 115200

@@ -1,0 +1,22 @@
+# SPDX-License-Identifier: Apache-2.0
+
+if SOC_MSM8953
+
+config NUM_IRQS
+	default 1024
+
+config ARM64_VA_BITS
+	default 32
+
+config MAX_XLAT_TABLES
+	default 12
+
+config SRAM_BASE_ADDRESS
+	hex
+	default $(dt_chosen_reg_addr_hex,$(DT_CHOSEN_Z_SRAM))
+
+config SRAM_SIZE
+	int
+	default $(dt_chosen_reg_size_int,$(DT_CHOSEN_Z_SRAM),0,K)
+
+endif # SOC_MSM8953

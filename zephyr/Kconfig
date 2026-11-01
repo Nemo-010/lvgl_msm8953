@@ -1,0 +1,8 @@
+# SPDX-License-Identifier: Apache-2.0
+rsource "../drivers/serial/Kconfig.qcom_uartdm"
+rsource "../drivers/display/Kconfig.qcom_mdp5"
+
+config DISPLAY_QCOM_MDP5_CONT_SPLASH_DTB_OVERRIDE
+	bool "Prefer the lk2nd simple-framebuffer DT node over MDP5 registers"
+	depends on DISPLAY_QCOM_MDP5_CONT_SPLASH
+	default y

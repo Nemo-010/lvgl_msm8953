@@ -1,0 +1,23 @@
+manifest:
+  remotes:
+    - name: zephyrproject-rtos
+      url-base: https://github.com/zephyrproject-rtos
+    - name: lvgl
+      url-base: https://github.com/lvgl
+
+  projects:
+    - name: zephyr
+      remote: zephyrproject-rtos
+      revision: v4.5.0
+      import: true
+
+    # Overrides the lvgl revision Zephyr's own manifest pins: that commit is not
+    # reachable from the upstream lvgl repository any more, so `west update`
+    # fails on it. This is the revision the image in prebuilt/ was built with.
+    - name: lvgl
+      remote: lvgl
+      revision: 9373f7cd1fd60bfb67bd4a16a0f6e6ed1a24a1b1
+      path: modules/lib/gui/lvgl
+
+  self:
+    path: app

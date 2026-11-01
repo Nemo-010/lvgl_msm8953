@@ -1,0 +1,6 @@
+board:
+  name: mido
+  full_name: Xiaomi Redmi Note 4 (MSM8953)
+  vendor: qcom
+  socs:
+  - name: msm8953

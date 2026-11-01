@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: Apache-2.0
+
+if SOC_MSM8953
+
+config MAIN_STACK_SIZE
+	default 16384
+
+config HEAP_MEM_POOL_SIZE
+	default 65536
+
+config SYSTEM_WORKQUEUE_STACK_SIZE
+	default 4096
+
+endif # SOC_MSM8953

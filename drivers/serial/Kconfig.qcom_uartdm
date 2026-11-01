@@ -1,0 +1,21 @@
+# SPDX-License-Identifier: Apache-2.0
+
+config UART_QCOM_UARTDM
+	bool "Qualcomm UARTDM (BLSP) serial driver"
+	default y
+	depends on DT_HAS_QCOM_MSM_UARTDM_ENABLED
+	select SERIAL_HAS_DRIVER
+	help
+	  Polled driver for the Qualcomm "UARTDM" block found in the BLSP1
+	  peripheral subsystem. It deliberately does not reconfigure the
+	  controller: the bootloader (lk2nd) already brought the debug UART up
+	  at 115200 8N1 and keeps its clock running, so the driver only pushes
+	  characters out of the TX FIFO.
+
+config UART_QCOM_UARTDM_INIT_BAUD
+	bool "Program the baud rate divisor during init"
+	depends on UART_QCOM_UARTDM
+	help
+	  Only needed if something before us left the UART in an unknown state.
+	  Off by default: touching the divisor means touching the GCC clocks,
+	  which lk2nd has already configured correctly.

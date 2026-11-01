@@ -1,0 +1,22 @@
+# SPDX-License-Identifier: Apache-2.0
+
+config DISPLAY_QCOM_MDP5_CONT_SPLASH
+	bool "Qualcomm MDSS MDP5 continuous-splash framebuffer"
+	default y
+	depends on DT_HAS_QCOM_MDP5_CONT_SPLASH_ENABLED
+	depends on DISPLAY
+	help
+	  Render into the framebuffer that the bootloader's MDSS MDP5 pipeline is
+	  still scanning out, instead of initialising a display controller of our
+	  own. This avoids writing a full DSI + panel driver: no PLL, no DSI PHY,
+	  no panel command sequence.
+
+	  It only works if the MDP is left in self-refreshing mode. lk2nd does
+	  that when the kernel command line contains
+	  "lk2nd.pass-simplefb=autorefresh", which is what the images built by
+	  this repository pass.
+
+config DISPLAY_QCOM_MDP5_LOG_REGISTERS
+	bool "Dump the decoded MDP5 pipe configuration at boot"
+	depends on DISPLAY_QCOM_MDP5_CONT_SPLASH
+	default y

@@ -1,0 +1,38 @@
+[workspace]
+authors = ["sounddrill31 <sounddrill31@gmail.com>"]
+channels = ["conda-forge"]
+name = "Zephyr-MSMS8953-LVGL"
+platforms = ["linux-64", "linux-aarch64", "osx-64", "osx-arm64"]
+version = "0.1.0"
+
+[tasks]
+init = "west init -l app/"
+update = "west update"
+build = "west build -d app/build -b mido app"
+image = "python tools/mkbootimg.py --kernel app/build/zephyr/zephyr.bin --dtb prebuilt/msm8953-xiaomi-mido.dtb --cmdline 'lk2nd.pass-simplefb=autorefresh console=ttyMSM0,115200n8' -o prebuilt/boot.img"
+verify = "python tools/verify_boot.py --bootimg prebuilt/boot.img --elf app/build/zephyr/zephyr.elf"
+
+sim-build = "west build -d app/build_sim -b native_sim/native/64 app -- -DEXTRA_CONF_FILE=sim.conf -DDTC_OVERLAY_FILE=sim.overlay"
+sim-run = "MIDO_FB_PPM=app/build_sim/mido_fb.ppm app/build_sim/zephyr/zephyr.exe"
+sim-check = "python tests/sim/check_render.py app/build_sim/mido_fb.ppm"
+
+clean = "west build -t clean -d app/build"
+pristine = "west build -t pristine -d app/build"
+
+[dependencies]
+cmake = ">=3.28,<5"
+ninja = ">=1.11,<2"
+python = ">=3.12,<3.14"
+dtc = ">=1.6,<2"
+make = ">=4.3,<5"
+
+[pypi-dependencies]
+west = ">=1.2,<2"
+pyelftools = ">=0.29"
+
+[manifest]
+path = app
+file = west.yml
+
+[zephyr]
+base = zephyr

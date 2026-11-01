@@ -1,0 +1,7 @@
+name: mido_msm8953
+build:
+  cmake: zephyr
+  kconfig: zephyr/Kconfig
+board_root: .
+soc_root: .
+dts_root: .

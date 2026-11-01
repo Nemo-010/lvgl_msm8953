@@ -1,0 +1,7 @@
+build*/
+*.o
+*.obj
+*.d
+mido_fb.ppm
+*.pyc
+__pycache__/

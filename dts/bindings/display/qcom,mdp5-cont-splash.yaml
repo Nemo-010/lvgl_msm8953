@@ -1,0 +1,22 @@
+# SPDX-License-Identifier: Apache-2.0
+description: |
+  Qualcomm MDSS MDP5 framebuffer left running by the bootloader.
+
+  The driver does not initialise the display controller. It reads the pipe
+  registers to find out which surface the bootloader is scanning out, then
+  renders into that memory. Requires the bootloader to have the MDP in
+  self-refreshing ("autorefresh") mode, which lk2nd enables when the kernel
+  command line contains lk2nd.pass-simplefb=autorefresh.
+
+  The geometry (address, size, stride, pixel format) is not described here: it
+  is discovered at runtime, either from the device tree lk2nd hands over or
+  from the MDP5 registers themselves.
+
+compatible: "qcom,mdp5-cont-splash"
+
+include: display-controller.yaml
+
+properties:
+  reg:
+    type: array
+    required: true
