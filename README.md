@@ -54,6 +54,13 @@ we run, the stock bootloader has already brought the panel up and left the MDP5
 pipe scanning out a framebuffer, and lk2nd deliberately keeps it running
 (`cont-splash`) so Linux has something on screen during boot.
 
+That the display is still alive when we start is not a guess: lk2nd's
+`lk2nd/display/cont-splash/rules.mk` filters the stock `target_display.o` out of
+the build, so `target_display_shutdown()` - which `aboot.c` calls before the
+jump when `DISPLAY_SPLASH_SCREEN` is set - resolves to the empty `__WEAK` stub in
+`target/init.c`, and `mdp_enable_autorefresh()` is only reachable if the pipe is
+still running.
+
 So the port is the *cheap* half of `drm/msm/mdp/mdp5` - read back the SSPP
 registers that describe the surface:
 
@@ -91,6 +98,15 @@ that is why the cmdline is not optional.
 # toolchain: Zephyr SDK 1.0.x (`west sdk install`), CMake, Ninja, Python 3.12+
 west init -l app && west update          # or: pixi run init && pixi run update
 west build -d app/build -b mido app      # or: pixi run build
+```
+
+Without west, point the build at a Zephyr 4.5 tree and an lvgl checkout:
+
+```sh
+export ZEPHYR_BASE=/path/to/zephyr ZEPHYR_TOOLCHAIN_VARIANT=zephyr
+export ZEPHYR_SDK_INSTALL_DIR=/path/to/zephyr-sdk-1.0.1
+export ZEPHYR_MODULES=/path/to/lvgl
+cmake -GNinja -B app/build -DBOARD=mido -S app && ninja -C app/build
 ```
 
 `app/CMakeLists.txt` registers this repository as the board root, SoC root, DTS
