@@ -31,7 +31,7 @@ in [Honest risk list](#honest-risk-list).
 | Builds to an lk2nd-loadable `boot.img` | yes, `prebuilt/boot.img` |
 | Boot chain replayed against lk2nd's own rules | 20/20 checks, `tools/verify_boot.py` |
 | Display driver + LVGL glue + blit, executed | 10/10 checks, `native_sim` render |
-| Executes end to end under an emulated A53 (reset → LVGL loop) | 4/4, `tools/emulate_boot.py` |
+| Executes end to end under an emulated A53, and paints the UI into the bootloader's surface | 6/6, `tools/emulate_boot.py` |
 | Console on `ttyMSM0` @ 115200 | writes verified in emulation, untested on hardware |
 | GIC-400 + ARM generic timer interrupts | programmed, but no IRQ delivery in the emulator |
 | Wi-Fi, modem, touch, USB, storage | not attempted |
@@ -226,7 +226,16 @@ LVGL up, entering handler loop
 [ok] application main() reached
 [ok] display driver probed a surface
 [ok] LVGL initialised and the render loop was entered
+[ok] pixels written through the MMU into the bootloader framebuffer
+[ok] the frame actually drawn is the application UI
 ```
+
+That last pair is read back out of the emulated panel memory: 2,050,186 of
+2,073,600 pixels are the UI's background colour, at the address the bootloader
+was using (0x90001000), reached through Zephyr's own page tables. The bytes are
+`28 18 10` in memory rather than `10 18 28`, which is correct: Zephyr's
+`PIXEL_FORMAT_RGB_888` is `B,G,R` in memory (`zephyr/modules/lvgl/lvgl_display_24bit.c`
+says so) and so is MDP5's 24bpp RGB888 surface.
 
 `--drop-dtb` runs the same thing with no device tree, which exercises the
 MDP5-register fallback instead:

@@ -8,7 +8,9 @@ call, no real GIC interrupt delivery. What it does prove is that the image is a
 *loadable, executing* AArch64 payload at the address lk2nd jumps to: the reset
 path runs, .bss is zeroed, the firmware-args hook fires, the MMU comes up, the
 GIC and timer are programmed through their real registers, the console driver
-writes characters we can capture, and the display driver probes its surface.
+writes characters we can capture, the display driver probes its surface, and
+LVGL paints the UI into that surface through the guest's own page tables (the
+panel memory is read back and checked).
 
 Usage:
     tools/emulate_boot.py --elf app/build/zephyr/zephyr.elf \
@@ -224,6 +226,35 @@ def main():
         print()
     print("============================================")
 
+    # Did the guest really render into the surface the bootloader left? Read the
+    # panel memory back through the emulator: the writes had to translate
+    # through the guest MMU for this to be non-zero.
+    fb_size = emu.ufb_w * (emu.ufb_bpp // 8) * emu.ufb_h
+    bg_px = 0
+    try:
+        panel = emu.uc.mem_read(emu.ufb, fb_size)
+        nonzero = sum(1 for b in panel if b)
+        # The UI paints 0x101828 over the whole screen; count matching pixels so
+        # this is not just "something wrote here".
+        #
+        # Byte order: Zephyr's PIXEL_FORMAT_RGB_888 (which MDP5's 24bpp RGB888
+        # surface is) stores B,G,R in memory - see
+        # zephyr/modules/lvgl/lvgl_display_24bit.c. So the background lands as
+        # 0x28,0x18,0x10, not 0x10,0x18,0x28.
+        if emu.ufb_bpp == 24:
+            want = bytes((0x28, 0x18, 0x10))
+        else:
+            want = bytes((0x10, 0x18, 0x28))
+        for i in range(0, len(panel), 3):
+            if panel[i:i + 3] == want:
+                bg_px += 1
+        print("\npanel 0x%x: %d%% of %d bytes non-zero, %d/%d px are the UI background"
+              % (emu.ufb, 100 * nonzero // len(panel), len(panel), bg_px, fb_size // 3))
+    except UcError as e:
+        print("\npanel read failed: %s" % e)
+        nonzero = 0
+        bg_px = 0
+
     ok = 0
     if "Booting Zephyr" in out:
         ok += 1
@@ -237,6 +268,12 @@ def main():
     if "LVGL up" in out or "timer interrupt never fired" in out:
         ok += 1
         print("[ok] LVGL initialised and the render loop was entered")
+    if nonzero > 1000:
+        ok += 1
+        print("[ok] pixels written through the MMU into the bootloader framebuffer")
+    if bg_px > 100000:
+        ok += 1
+        print("[ok] the frame actually drawn is the application UI")
 
     return 0 if ok >= 2 else 1
 
