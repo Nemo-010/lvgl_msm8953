@@ -25,7 +25,7 @@ struct fdt_fb_info {
 	uint32_t width;
 	uint32_t height;
 	uint32_t stride;	/* bytes per line */
-	uint8_t bpp;
+	uint8_t bpp;	/* bytes per pixel: 2, 3 or 4 */
 };
 
 /* Returns true if @dtb looks like a flattened device tree. */

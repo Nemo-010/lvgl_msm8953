@@ -36,11 +36,17 @@
 #include <zephyr/sys/sys_io.h>
 
 #if defined(CONFIG_SOC_MSM8953)
+#include <zephyr/kernel.h>
+#include <zephyr/arch/cpu.h>
 #include <soc.h>
+
+/* arch_mem_map() is declared in the arch interface header. */
+extern int arch_mem_map(void *virt, uintptr_t phys, size_t size, uint32_t flags);
 #define BOOT_DTB msm8953_boot_dtb
 #else
 #define BOOT_DTB 0
 #endif
+
 
 #if defined(CONFIG_ARCH_POSIX)
 /* native_sim: the register block is provided by tests/sim/mdp5_sim.c */
@@ -50,6 +56,36 @@
 #include "fdt_min.h"
 
 LOG_MODULE_REGISTER(display_mdp5, CONFIG_DISPLAY_LOG_LEVEL);
+
+/*
+ * The framebuffer is somewhere in DDR that only the bootloader knows about, so
+ * it cannot be part of the static MMU regions. Map exactly the surface we found
+ * once we know where it is.
+ */
+static int map_surface(uint64_t base, uint32_t stride, uint32_t height)
+{
+#if defined(CONFIG_SOC_MSM8953) && defined(CONFIG_MMU)
+	size_t size = (size_t)stride * height;
+	int ret;
+
+	/* Page-aligned window covering the whole surface. */
+	uintptr_t start = (uintptr_t)base & ~(CONFIG_MMU_PAGE_SIZE - 1);
+	uintptr_t end = ((uintptr_t)base + size + CONFIG_MMU_PAGE_SIZE - 1) &
+			~(uintptr_t)(CONFIG_MMU_PAGE_SIZE - 1);
+
+	ret = arch_mem_map((void *)start, start, end - start, K_MEM_CACHE_WB | K_MEM_PERM_RW);
+	if (ret != 0) {
+		LOG_ERR("cannot map the framebuffer at 0x%lx (%zu bytes): %d",
+			(unsigned long)start, (size_t)(end - start), ret);
+	}
+	return ret;
+#else
+	ARG_UNUSED(base);
+	ARG_UNUSED(stride);
+	ARG_UNUSED(height);
+	return 0;
+#endif
+}
 
 /* MDP5 SSPP (source surface processor) register offsets, from mdp5.xml */
 #define SSPP_SRC_SIZE		0x000
@@ -170,6 +206,9 @@ static bool probe_dtb(uintptr_t dtb)
 	}
 
 	decode_and_store("dtb", "simplefb", fb.base, fb.width, fb.height, fb.stride, fb.bpp);
+	if (surf.valid && map_surface(fb.base, surf.stride, surf.height) != 0) {
+		surf.valid = false;
+	}
 	return surf.valid;
 }
 
@@ -196,7 +235,7 @@ static bool probe_mdp5(const struct device *dev)
 			img & 0xFFFFU, img >> 16, stride, fmt, bpp);
 
 		decode_and_store("mdp5", pipe->name, addr, img & 0xFFFFU, img >> 16, stride, bpp);
-		if (surf.valid) {
+		if (surf.valid && map_surface(addr, surf.stride, surf.height) == 0) {
 			return true;
 		}
 	}

@@ -6,19 +6,25 @@
  * Zephyr only maps what it is told about. Besides the kernel image itself we
  * need:
  *
- *  - the low 1 GiB of DRAM, because the bootloader's continuous-splash
- *    framebuffer lives somewhere in DDR and we do not know where until we
- *    read the MDP5 pipe registers (and because the DTB handed to us in x0
- *    sits just above 0x80000000);
+ *  - the DDR around the image, because the bootloader's continuous-splash
+ *    framebuffer lives somewhere in DDR and we do not know where until we read
+ *    the MDP5 pipe registers, and because the device tree lk2nd hands over in
+ *    x0 sits above the image (0x83400000 by default);
  *  - the BLSP1 UART0 register window, for the console;
  *  - the MDSS/MDP5 register window, to read the splash pipe configuration.
  *
- * Device mappings use MT_DEVICE_nGnRnE and are marked non-secure, since we are
- * running in the TrustZone normal world.
+ * The DDR window must be split around the kernel image: Zephyr maps the image
+ * itself first and then adds these regions with MT_NO_OVERWRITE, and a region
+ * that overlaps an existing mapping is rejected as a whole. A single
+ * 0x80000000..0xc0000000 entry therefore maps *nothing* - which is how a
+ * runtime DTB read ended up faulting.
+ *
+ * Device mappings are non-secure, since we run in the TrustZone normal world.
  */
 
 #include <zephyr/kernel.h>
 #include <zephyr/arch/arm64/arm_mmu.h>
+#include <zephyr/linker/linker-defs.h>
 
 #include "soc.h"
 
@@ -26,9 +32,17 @@
 #define MT_MEM	(MT_NORMAL | MT_P_RW_U_NA | MT_NS)
 
 static const struct arm_mmu_region mmu_regions[] = {
-	/* Framebuffer + runtime DTB live somewhere in the first GiB of DDR. */
-	MMU_REGION_FLAT_ENTRY("DDR_LOW", MSM8953_DDR_BASE,
-			      MSM8953_DDR_END - MSM8953_DDR_BASE, MT_MEM),
+	/*
+	 * The device tree lk2nd copies before jumping: ABOOT_FORCE_TAGS_ADDR is
+	 * DDR_START + 0x3400000 on msm8953, a fixed address, and the tree we
+	 * append is ~65 KiB. Mapping it is what makes the fwargs hook's x0
+	 * readable.
+	 *
+	 * The framebuffer is *not* mapped here: its address is only known at
+	 * runtime, so display_qcom_mdp5.c maps exactly that range with
+	 * arch_mem_map() once it has read it out of the MDP5 registers.
+	 */
+	MMU_REGION_FLAT_ENTRY("BOOT_DTB", MSM8953_BOOT_DTB_ADDR, MSM8953_BOOT_DTB_SIZE, MT_MEM),
 
 	MMU_REGION_FLAT_ENTRY("BLSP1_UART0", MSM8953_BLSP1_UART0_BASE, 0x1000, MT_DEV),
 	MMU_REGION_FLAT_ENTRY("MDSS_MDP", MSM8953_MDP_BASE, 0x10000, MT_DEV),

@@ -11,6 +11,8 @@ update = "west update"
 build = "west build -d app/build -b mido app"
 image = "python tools/mkbootimg.py --kernel app/build/zephyr/zephyr.bin --dtb prebuilt/msm8953-xiaomi-mido.dtb --cmdline 'lk2nd.pass-simplefb=autorefresh console=ttyMSM0,115200n8' -o prebuilt/boot.img"
 verify = "python tools/verify_boot.py --bootimg prebuilt/boot.img --elf app/build/zephyr/zephyr.elf"
+emulate = "python tools/emulate_boot.py --elf app/build/zephyr/zephyr.elf --dtb prebuilt/msm8953-xiaomi-mido.dtb"
+emulate-fallback = "python tools/emulate_boot.py --elf app/build/zephyr/zephyr.elf --dtb prebuilt/msm8953-xiaomi-mido.dtb --drop-dtb"
 
 sim-build = "west build -d app/build_sim -b native_sim/native/64 app -- -DEXTRA_CONF_FILE=sim.conf -DDTC_OVERLAY_FILE=sim.overlay"
 sim-run = "MIDO_FB_PPM=app/build_sim/mido_fb.ppm app/build_sim/zephyr/zephyr.exe"
@@ -29,10 +31,11 @@ make = ">=4.3,<5"
 [pypi-dependencies]
 west = ">=1.2,<2"
 pyelftools = ">=0.29"
+unicorn = ">=2.0,<3"
 
 [manifest]
-path = app
-file = west.yml
+path = "app"
+file = "west.yml"
 
 [zephyr]
-base = zephyr
+base = "zephyr"

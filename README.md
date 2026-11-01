@@ -31,8 +31,9 @@ in [Honest risk list](#honest-risk-list).
 | Builds to an lk2nd-loadable `boot.img` | yes, `prebuilt/boot.img` |
 | Boot chain replayed against lk2nd's own rules | 20/20 checks, `tools/verify_boot.py` |
 | Display driver + LVGL glue + blit, executed | 10/10 checks, `native_sim` render |
-| Console on `ttyMSM0` @ 115200 | written, untested on hardware |
-| GIC-400 + ARM generic timer interrupts | written, untested on hardware |
+| Executes end to end under an emulated A53 (reset → LVGL loop) | 4/4, `tools/emulate_boot.py` |
+| Console on `ttyMSM0` @ 115200 | writes verified in emulation, untested on hardware |
+| GIC-400 + ARM generic timer interrupts | programmed, but no IRQ delivery in the emulator |
 | Wi-Fi, modem, touch, USB, storage | not attempted |
 
 ## Compatibility matrix
@@ -74,6 +75,10 @@ Two independent sources are used, so it works even if one is missing:
    `simple-framebuffer` node there when the kernel cmdline carries
    `lk2nd.pass-simplefb`; `lib/fdt_min.c` reads it;
 2. the MDP5 registers themselves, if the DT says nothing.
+
+The framebuffer is mapped on demand (`arch_mem_map()`) once its address is
+known; it cannot be a static MMU region because neither the address nor the
+size is a compile-time constant.
 
 The one non-obvious requirement: the MDP must be left in self-refreshing mode,
 otherwise it fetches the frame once and never again, and the screen freezes on
@@ -201,7 +206,48 @@ The dump caught a real bug (FDT magic read natively instead of big-endian) and
 a real subtlety: `x8r8g8b8` on MDP5 is `B,G,R,X` in memory, so a naive RGB dump
 of a correct framebuffer looks colour-swapped.
 
-### 3. Header sanity
+### 3. Execution - `tools/emulate_boot.py`
+
+The image is loaded into an emulated Cortex-A53 (unicorn) at exactly the
+address lk2nd jumps to, with the mido DTB placed at the tags address and passed
+in `x0`, and with the UART/GIC/MDP register blocks faked well enough to answer.
+This is not a phone - there is no TrustZone and no interrupt delivery - but it
+executes the real reset path, MMU setup, driver probes and application:
+
+```
+$ pixi run emulate
+[00:00:16.766] <inf> display_mdp5: framebuffer 0x90001000 1080x1920 stride 3240 bpp 3 via dtb (simplefb)
+*** Booting Zephyr OS build 4.5.0 ***
+*** Zephyr on mido (MSM8953) ***
+runtime DTB from bootloader: 0x83400000
+display: 1080x1920, 24 bpp, format 1
+LVGL up, entering handler loop
+[ok] kernel banner reached the console
+[ok] application main() reached
+[ok] display driver probed a surface
+[ok] LVGL initialised and the render loop was entered
+```
+
+`--drop-dtb` runs the same thing with no device tree, which exercises the
+MDP5-register fallback instead:
+
+```
+<wrn> display_mdp5: runtime devicetree at 0x83400000 is not a valid FDT
+<inf> display_mdp5: VIG_0: src0=0x90001000 img=1080x1920 stride 3240 fmt=0x00000400 bpp=3
+```
+
+This step earned its keep - it found two bugs static analysis did not:
+
+* the DDR MMU region was declared as one 0x80000000..0xc0000000 window, which
+  overlaps the kernel image; Zephyr maps its own regions first and rejects an
+  overlapping `MT_NO_OVERWRITE` region *as a whole*, so nothing was mapped and
+  the first read of the runtime DTB faulted. The framebuffer is now mapped on
+  demand with `arch_mem_map()` once its address is known;
+* `lib/fdt_min.c` reported bits per pixel while the driver works in bytes, so
+  the DT path rejected every surface ("unsupported bpp 24") and silently fell
+  back to the register path.
+
+### 4. Header sanity
 
 ```
 $ aarch64-zephyr-elf-objdump -d app/build/zephyr/zephyr.elf | head -1
@@ -247,6 +293,7 @@ dts/bindings/            bindings for the two drivers
 lib/fdt_min.c            minimal FDT walker, host-testable
 tools/mkbootimg.py       Android boot image builder (text_offset + appended DTB)
 tools/verify_boot.py     replays lk2nd's boot chain and checks the assumptions
+tools/emulate_boot.py    executes the image on an emulated A53 with MMIO hooks
 tests/host/              FDT walker harness
 tests/sim/               fake MDP5 registers + render check
 ```

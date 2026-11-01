@@ -134,12 +134,13 @@ static void parse_fb_prop(struct walk *w, const char *name, const uint8_t *val, 
 	} else if (strcmp(name, "stride") == 0 && len >= 4U) {
 		w->cur_stride = be32(val);
 	} else if (strcmp(name, "format") == 0) {
+		/* Stored as bytes per pixel, which is what the driver uses. */
 		if (len >= 6U && memcmp(val, "r5g6b5", 6) == 0) {
-			w->cur_bpp = 16U;
+			w->cur_bpp = 2U;
 		} else if (len >= 6U && memcmp(val, "r8g8b8", 6) == 0) {
-			w->cur_bpp = 24U;
+			w->cur_bpp = 3U;
 		} else if (len >= 8U && memcmp(val, "x8r8g8b8", 8) == 0) {
-			w->cur_bpp = 32U;
+			w->cur_bpp = 4U;
 		}
 	}
 }

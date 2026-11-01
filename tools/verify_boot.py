@@ -371,7 +371,7 @@ def main():
     check(out.returncode == 0, "on-target parser found the injected framebuffer")
 
     expect = ("base 0x%x size 0x%x %dx%d stride %d bpp %d"
-              % (sim_base, sim_size, sim_w, sim_h, sim_stride, sim_bpp))
+              % (sim_base, sim_size, sim_w, sim_h, sim_stride, sim_bpp // 8))
     check(expect in out.stdout, "parser decoded the injected geometry",
           "expected '%s'" % expect)
     check("bootargs: " + cmdline in out.stdout or cmdline == "",
